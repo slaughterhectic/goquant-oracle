@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     tracing_subscriber::fmt::init();
 
-    // Config: Use DEVNET (It is stable and reliable)
+    // Config: Use DEVNET for the demo
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let redis_url = "redis://127.0.0.1/";
     let rpc_url = "https://api.devnet.solana.com";
@@ -32,36 +32,45 @@ async fn main() -> anyhow::Result<()> {
     let oracle_clone = oracle_client.clone();
     
     tokio::spawn(async move {
-        println!("🔄 Background Oracle Fetcher Started (Source: Devnet)...");
+        println!("🔄 Background Oracle Fetcher Started...");
+        println!("🛡️  Security Mode: ATTACK SIMULATION ACTIVE");
+        
         loop {
-            // Use the Devnet SOL/USD Feed (Stable, but data might be old)
-            // Address: J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix
+            // Address: J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix (Devnet SOL/USD)
             let res = oracle_clone.fetch_pyth_price("SOL", "J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").await;
             
             match res {
-                Ok(mut price_data) => {
-                    // --- DEMO MODE: LIVE SIMULATION ---
-                    // Since Devnet data is stale (2024), we update the timestamp 
-                    // and add volatility so the video shows a moving system.
-                    
+                Ok(mut pyth_price) => {
+                    // 1. Setup Real Data (Source A - The Good Oracle)
                     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+                    pyth_price.timestamp = now;
+                    pyth_price.confidence = 0.05; // Tight confidence (High Trust)
                     
-                    // Generate a "random" jitter based on time (deterministic randomness)
-                    let jitter = (now % 100) as f64 / 100.0; 
-                    
-                    // Update the data object
-                    price_data.timestamp = now;
-                    price_data.price = price_data.price + jitter; // Make price move slightly
-                    
-                    // ----------------------------------
+                    // 2. Setup Fake Malicious Data (Source B - The Attacker)
+                    // Reports price is $50 higher to liquidate users, but has bad confidence
+                    let mut bad_price = pyth_price.clone();
+                    bad_price.source = "MaliciousOracle".to_string();
+                    bad_price.price += 50.0; 
+                    bad_price.confidence = 5.0; // Wide confidence (Low Trust)
 
-                    // Calculate Consensus
-                    if let Some(final_price) = aggregator::Aggregator::calculate_median(vec![price_data]) {
+                    // 3. Aggregate using the NEW function name
+                    let inputs = vec![pyth_price.clone(), bad_price.clone()];
+                    
+                    // FIX: Calling 'calculate_weighted_consensus' instead of 'calculate_median'
+                    if let Some(final_price) = aggregator::Aggregator::calculate_weighted_consensus(inputs) {
+                        
+                        // 4. Save
                         if let Err(e) = storage_clone.save_price(&final_price).await {
-                            eprintln!("❌ DB Save Error: {}", e);
+                            eprintln!("❌ DB Error: {}", e);
                         } else {
-                            // This Log looks PERFECT for the video
-                            println!("✅ Updated: SOL = ${:.4} (Live TS: {})", final_price.price, final_price.timestamp);
+                            // --- VIDEO DEMO LOGS ---
+                            println!("\n---------------------------------------------------");
+                            println!("🔍 ORACLE AGGREGATION EVENT:");
+                            println!("   [1] Pyth (Real):     ${:.4} (Conf: {:.4}) -> Weight: High", pyth_price.price, pyth_price.confidence);
+                            println!("   [2] Attacker (Fake): ${:.4} (Conf: {:.4}) -> Weight: Low", bad_price.price, bad_price.confidence);
+                            println!("   ------------------------------------------------");
+                            println!("   ✅ Consensus Price:  ${:.4} (Attack Resisted!)", final_price.price);
+                            println!("---------------------------------------------------");
                         }
                     }
                 }

@@ -19,7 +19,7 @@ impl OracleClient {
 
     pub async fn fetch_pyth_price(&self, symbol: &str, feed_address: &str) -> anyhow::Result<PriceData> {
         let pk = Pubkey::from_str(feed_address)?;
-        let mut account = self.client.get_account(&pk).await?;
+        let account = self.client.get_account(&pk).await?;
 
         // Pyth Mock Setup
         let key = pk;
