@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS price_history (
+  id SERIAL PRIMARY KEY,
+  symbol TEXT NOT NULL,
+  price NUMERIC NOT NULL,
+  confidence NUMERIC NOT NULL,
+  source TEXT NOT NULL,
+  timestamp BIGINT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);

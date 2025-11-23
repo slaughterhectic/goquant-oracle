@@ -1,0 +1,22 @@
+[package]
+name = "service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.6" # Downgraded slightly to match sqlx 0.6 ecosystem better
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+log = "0.4"
+env_logger = "0.10"
+# Using 0.6.3 to avoid Zeroize conflict
+sqlx = { version = "0.6.3", features = ["runtime-tokio-native-tls", "macros", "postgres", "bigdecimal", "decimal"] }
+redis = { version = "0.23", features = ["aio", "tokio-comp"] }
+solana-client = "1.16" # Slightly older stable for 0.6 compatibility
+solana-sdk = "1.16"
+pyth-sdk-solana = "0.8" # Stable
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = "0.3"
